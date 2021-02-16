@@ -14,13 +14,13 @@ class Mesh:
     # self.bc.  array with the indices of boundary  type : np.array dim: (2)
     #           points
 
-    self.p   =
-    self.n_p = 
+    self.p   = points
+    self.n_p = len(points)
     
-    self.s   = 
-    self.n_s = 
+    self.s   = np.
+    self.n_s = self.p - 1
     
-    self.bc  = 
+    self.bc  = np.array([x[0], x[-1]])
 
 
 class V_h:
@@ -28,8 +28,8 @@ class V_h:
     # self.mesh Mesh object containg geometric info type: Mesh
     # self.sim  dimension of the space              type: in
 
-    self.mesh = 
-    self.dim  = 
+    self.mesh = mesh
+    self.dim  = mesh.n_p
 
   def eval(self, xi, x):
     """ evaluation of the piece wise local polynomial given by
@@ -37,7 +37,7 @@ class V_h:
     """
 
     # compute the index of the interval in which x is contained
-
+	
 
     # compute the size of the interval
 
@@ -46,8 +46,8 @@ class V_h:
 
 class Function:
   def __init__(self, xi, v_h):
-    self.xi  = 
-    self.v_h = 
+    self.xi  = xi
+    self.v_h = v_h
 
   def __call__(self,x):
     # wrapper for calling eval in V_h
@@ -134,7 +134,6 @@ def source_assembler(v_h, f, u_dirichlet):
   # update the source_vector
 
 
-
   # extract the interval index for the right boudanry
 
 
@@ -142,9 +141,7 @@ def source_assembler(v_h, f, u_dirichlet):
   # compute the length of the interval
 
 
-
   # sample sigma at the middle point
-
 
 
   # update the source_vector
