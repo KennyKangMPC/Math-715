@@ -3,6 +3,7 @@ import numpy as np
 import scipy.sparse as spsp
 from scipy.sparse.linalg import spsolve
 import scipy.integrate as integrate
+import matplotlib.pyplot as plt
 
 class Mesh:
   def __init__(self, points):
@@ -14,13 +15,13 @@ class Mesh:
     # self.bc.  array with the indices of boundary  type : np.array dim: (2)
     #           points
 
-    self.p   = points
-    self.n_p = len(points)
+    self.p   = np.sort(points)
+    self.n_p = len(self.p)
     
-    self.s   = np.
-    self.n_s = self.p - 1
+    self.s   = np.column_stack((self.p[:-1], self.p[1:]))
+    self.n_s = self.n_p - 1
     
-    self.bc  = np.array([x[0], x[-1]])
+    self.bc  = np.take(self.p, [0, -1])
 
 
 class V_h:
@@ -37,12 +38,15 @@ class V_h:
     """
 
     # compute the index of the interval in which x is contained
-	
+	points = self.mesh.p
+	prev = points[(points <= x)]
+	idx = np.minimum(len(prev) - 1, self.mesh.n_s - 1)
 
     # compute the size of the interval
+	interval = self.mesh.s[idx, :]
+	seglen - interval[1] - interval[0]
 
-
-    return # here return the value of the fucnciton 
+    return xi[idx] + (xi[idx + 1] - xi[idx]) / seglen * (x - interval[0])# here return the value of the fucnciton 
 
 class Function:
   def __init__(self, xi, v_h):
@@ -53,7 +57,7 @@ class Function:
     # wrapper for calling eval in V_h
     
     # use the fucntion defined in v_h
-    return 
+    return V_h.eval(self.v_h, self.xi, x)
 
 
 def mass_matrix(v_h):
@@ -62,18 +66,22 @@ def mass_matrix(v_h):
   # this initializes an empty sparse matrix of 
   # size v_h.dim x v_h.dim
   M = spsp.lil_matrix((v_h.dim,v_h.dim))
+  s = v_h.mesh.s
 
   # for loop
   for i in range(v_h.mesh.n_s):
     # extract the indices
-
+	
 
     # compute the lengh of the segment
-
+	h = s[i, 1] - s[i, 0]
 
     # add the values to the matrix
-
-
+	M_temp = 1/6 * np.matrix([[2, 1], [1, 2]]) * h
+	M[i, i] = M[i, i] + M_temp[0, 0]
+	M[i, i+1] = M[i, i+1] + M_temp[0, 1]
+	M[i+1, i] = M[i+1, i] + M_temp[1, 0]
+	M[i+1, i+1] = M[i+1, i+1] + M_temp[1,1]
 
   return M
 
@@ -81,21 +89,25 @@ def stiffness_matrix(v_h, sigma):
 
   # matrix easy to change sparsity pattern
   S = spsp.lil_matrix((v_h.dim,v_h.dim))
-
+  
+  s = v_h.mesh.s
   # for loop
   for i in range(v_h.mesh.n_s):
     # extract the indices
-
+	
 
     # compute the lengh of the segment
-
+	h = s[i, 1] - s[i, 0]
 
     # sample sigma
-
+	sig = sigma((s[i, 0 + s[i, 1]]) / 2)
 
     # update the stiffness matrix
- 
-
+ 	S_temp = sig / h * np.matrix([[1, -1], [-1, 1]])
+ 	S[i, i] = S[i, i] + S_temp[0, 0]
+ 	S[i, i+1] = S[i, i+1] + S_temp[0, 1]
+ 	S[i+1, i] = S[i+1, i] + S_temp[1, 0]
+ 	S[i+1, i+1] = S[i+1, i+1] + S_temp[1, 1]
   return S
 
 # show differences between Trapezoidal rule and Simpson rule
@@ -103,48 +115,54 @@ def load_vector(v_h, f):
 
   # allocate the vector
   b = np.zeros(v_h.dim)
-
+  s = v_h.mesh.s
   # for loop over the segments
   for i in range(v_h.mesh.n_s):
     # extracting the indices
 
 
     # computing the lenght of the interval 
-
+	h = s[i, 1] - s[i, 0]
 
     # update b
-
-
+	b[i] = b[i] + 1/2 * f(s[i, 0]) *h
+	b[i+1] = b[i+1] + 1/2 * f(s[i, 1]) *h
+	
   return b
 
 
 def source_assembler(v_h, f, u_dirichlet):
   # computing the load vector (use the function above)
-
+  load_vector(v_h, f)
+  
+  s = v_h.mesh.s
+  b = load_vector(v_h, f)
 
   # extract the interval index for left boundary
-
+  
 
   # compute the lenght of the interval
+  h_1 = s[0, 1] - s[0, 0]
+  
 
 
   # sample sigma at the middle point
-
+  sig_1 = sigma((s[0, 0] + s[0, 1]) / 2)
 
   # update the source_vector
-
+  b[1] = b[1] + sig_1 / h_1 * u_dirichlet[0]
 
   # extract the interval index for the right boudanry
-
-
-
+  
   # compute the length of the interval
-
+  h_n = s[-1, 1] - s[-1, 0]
 
   # sample sigma at the middle point
+  sig_n = sigma((s[-1, 0] + s[-1, 1]) / 2)
 
 
   # update the source_vector
+  b[-2] = b[-2] + sig_n / h_n * u_dirichlet[1]
 
 
   # return only the interior nodes
@@ -165,10 +183,10 @@ def solve_poisson_dirichelet(v_h, f, sigma,
   # we compute the stiffness matrix, we only use the  
   # the interior dof, and we need to convert it to 
   # a csc_matrix
-  S = 
+  S = stiffness_matrix(v_h, sigma)[1:-1, 1:-1]
   
   # we build the source
-  b = 
+  b = source_assembler(v_h, f, sigma, u_dirichlet)
 
   # solve for the interior degrees of freedom
   u_interior = spsolve(S,b)
@@ -190,7 +208,7 @@ def pi_h(v_h, f):
     output: pih_f function that is the interpolation 
                   of f into v_h
   """
-  pi_h_f = 
+  pi_h_f = Function(f, v_h)
 
 
   return pi_h_f
@@ -204,17 +222,17 @@ def p_h(v_h, f):
                   of f into v_h
   """
   # compute load vector
-  b = 
+  b = load_vector(v_h, f)
 
   # compute Mass matrix and convert it to csc type
-  M = 
+  M = mass_matrix(v_h)
 
   # solve the system
   xi = spsolve(M,b)
 
   # create the new function (this needs to be an instance)
   # of a Function class
-  ph_f = 
+  ph_f = Function(xi, v_h)
 
   return ph_f
 
@@ -277,9 +295,5 @@ if __name__ == "__main__":
 
   # print the error
   print("L^2 error using %d points is %.6f"% (v_h.dim, l2_err))
-
-
-
-
 
 
